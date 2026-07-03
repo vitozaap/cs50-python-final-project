@@ -1,14 +1,13 @@
 import subprocess
 import sys
+import os
 
-PRESETS = {"high": {"crf": 30}, "mid": {"crf": 20}, "low": {"crf": 10}}
+PRESETS = {"high": {"crf": 28}, "mid": {"crf": 23}, "low": {"crf": 18}}
 EXTENSIONS = [".mp4", ".avi", ".mkv", ".mov"]
 
 
-
-
 def validate_media(path=""):
-    cmd = ["ffprobe", "-v", "error", "-show_format", path]
+    cmd = ["ffprobe", "-v", "error", path]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True)
         result.check_returncode()
@@ -16,10 +15,23 @@ def validate_media(path=""):
     except subprocess.CalledProcessError as err:
         sys.exit(f"{err.stderr.replace('\n', '')}")
     except FileNotFoundError:
-        sys.exit("FFMPEG binaries not found")
+        sys.exit("ffprobe binaries not found")
 
 
-def compress_media(media, output, options=PRESETS["mid"]): 
-    cmd = ["ffmpeg", "-i", media, "-o", output]
+def create_ffmpeg_command(media, output, options="mid"):
+    media, output = (os.path.normpath(media), os.path.normpath(output))
+    cmd = [
+        "ffmpeg",
+        "-i",
+        media,
+        "-c:v",
+        "libx264",
+        "-crf",
+        str(PRESETS[options]["crf"]),
+        "-y",
+        output,
+    ]
+    return cmd
 
-
+def compress(cmd):
+    ...
