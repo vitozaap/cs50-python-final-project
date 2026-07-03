@@ -1,6 +1,9 @@
 import argparse
 import sys
+from rich.console import Console
+from rich.prompt import Prompt
 import os
+import questionary
 from compressor import (
     PRESETS,
     validate_media,
@@ -16,6 +19,7 @@ PROG_EPILOG = "CS50's final project created by @vitozaap."
 
 def main():
     args = parse_args()
+    run_interactive(args)
     validate_path(args.input)
     validate_args(args)
     validate_media(args.input)
@@ -25,15 +29,15 @@ def main():
 
 def parse_args(argv=None):
     """Parses all CLI arguments.
-       Required Arguments **(Positional)**:
-        - `input`
-       Optional Arguments **(Flagged)**:
+        Arguments **(Flagged)**:
         - `preset`
             **-p, --preset**
             default: **mid**
         - `output`
             **-o, --output**
             default: **{input}_compressed**
+        `input`
+            **-i, --input**
 
 
     :param argv: Unparsed arguments directly from `sys.argv`.
@@ -47,7 +51,9 @@ def parse_args(argv=None):
         description=PROG_DESCRIPTION,
         epilog=PROG_EPILOG,
     )
-    parser.add_argument("input", help="file input path")
+    parser.add_argument(
+        "-i", "--input", help="file input path", required=False, default=""
+    )
     parser.add_argument(
         "-o",
         "--output",
@@ -64,10 +70,8 @@ def parse_args(argv=None):
     return parser.parse_args(argv)
 
 
-def validate_path(file):
-    if not os.path.isfile(file):
-        sys.exit(f'Invalid path: "{file}"')
-    return True
+def validate_path(file=""):
+    return os.path.isfile(file)
 
 
 def validate_args(args: argparse.Namespace):
@@ -84,7 +88,7 @@ def validate_args(args: argparse.Namespace):
     input_name, input_ext = os.path.splitext(args.input)
 
     if args.preset.lower() not in PRESETS.keys():
-        sys.exit(f'"{args.preset}" is not a valid preset option: {tuple(PRESETS)}')
+        return f'"{args.preset}" is not a valid preset option: {tuple(PRESETS)}'
     else:
         args.preset = args.preset.lower()
 
@@ -94,11 +98,51 @@ def validate_args(args: argparse.Namespace):
         _, output_ext = os.path.splitext(args.output)
 
         if output_ext not in EXTENSIONS and output_ext != "":
-            sys.exit(f'"{args.output}" has no valid extension: {sorted(EXTENSIONS)}')
+            return f'"{args.output}" has no valid extension: {sorted(EXTENSIONS)}'
         elif output_ext == "":
             args.output = f"{input_name}_compressed{input_ext}"
 
     return True
+
+
+def run_interactive(args=None):
+    if args.input != "":
+        return None
+    console = Console()
+    console.rule("[bold cyan]FFMPYG")
+    custom = questionary.Style(
+        [
+            ("question", "fg:cyan bold"),
+            ("selected", "fg:cyan bold"),
+            ("pointer", "fg:cyan bold"),
+            ("highlighted", "fg:cyan"),
+        ]
+    )
+    args.input = questionary.path(
+        "Enter file path",
+        style=questionary.Style(custom),
+        qmark="📁",
+    ).ask()
+    
+    questionary.select(
+        "Select the best compression preset",
+        choices=[
+            questionary.Choice(
+                "high - Higher compression factor (Smaller size)", "high"
+            ),
+            questionary.Choice("mid - Balanced compression factor (Default)", "mid"),
+            questionary.Choice(
+                "low - Lower compression factor (Higher quality)", "low"
+            ),
+        ],
+        default="mid",
+        style=custom,
+    ).ask()
+    args.output = Prompt.ask(
+        "[bold cyan]💾 Output path[/]",
+        default="output.mp4",
+    )
+    console.print("[bold green]✅ Ready to go!")
 
 
 if __name__ == "__main__":

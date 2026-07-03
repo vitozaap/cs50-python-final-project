@@ -1,6 +1,13 @@
 import pytest
 import argparse
-from project import parse_args, validate_args, PRESETS, validate_path, main
+from project import (
+    parse_args,
+    validate_args,
+    PRESETS,
+    validate_path,
+    main,
+    run_interactive,
+)
 from pytest_mock import MockerFixture
 
 
@@ -19,7 +26,7 @@ def test_main(mocker: MockerFixture):
     mock_validate_args = mocker.patch("project.validate_args", return_value=True)
     mock_validate_media = mocker.patch("project.validate_media", return_value=True)
     main()
-    
+
     # validate if main is calling the functions correctly
     mock_parse_args.assert_called_once()
     mock_validate_media.assert_called_once_with(mock_parse_args.return_value.input)
@@ -74,3 +81,8 @@ def test_validate_args_presets(mocker: MockerFixture, tmp_path):
     with pytest.raises(SystemExit):
         mock_args_presets.preset = "invalid"
         validate_args(mock_args_presets)
+
+
+def test_run_interactive(mocker: MockerFixture):
+    mock_args = argparse.Namespace()
+    assert run_interactive(args=mock_args) is None

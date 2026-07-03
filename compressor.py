@@ -9,7 +9,7 @@ EXTENSIONS = [".mp4", ".avi", ".mkv", ".mov"]
 def validate_media(path=""):
     cmd = ["ffprobe", "-v", "error", path]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        result = subprocess.run(cmd)
         result.check_returncode()
         return True
     except subprocess.CalledProcessError as err:
