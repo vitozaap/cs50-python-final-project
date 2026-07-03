@@ -1,41 +1,56 @@
 import argparse
 import sys
 import os
+from compressor import PRESETS, validate_media, compress_media, EXTENSIONS
 
 PROG_NAME = "ffmpyg"
 PROG_DESCRIPTION = "Video/Image compressor wrapping ffmpeg behind the scenes."
 PROG_EPILOG = "CS50's final project created by @vitozaap."
-PRESETS = [
-    {"name": "high", "crf": 30},
-    {"name": "mid", "crf": 20},
-    {"name": "low", "crf": 10},
-]
-EXTENSIONS = ["mp4", "avi", "mkv", "mov"]
 
 
 def main():
     args = parse_args()
     validate_path(args.input)
     validate_args(args)
+    validate_media(args.input)
+    compress_media(args.input, args.output, args.preset)
 
 
 def parse_args(argv=None):
+    """Parses all CLI arguments.
+       Required Arguments **(Positional)**:
+        - `input`
+       Optional Arguments **(Flagged)**:
+        - `preset`
+            **-p, --preset**
+            default: **mid**
+        - `output`
+            **-o, --output**
+            default: **{input}_compressed**
+
+
+    :param argv: Unparsed arguments directly from `sys.argv`.
+    :type argv: `list[str]`
+    :returns: `True` if all arguments could be parse.
+    :rtype: Boolean
+    :raises: Will raise the default pretty error message from `argparse` if detected any invalid arguments.
+    """
     parser = argparse.ArgumentParser(
         prog=PROG_NAME,
         description=PROG_DESCRIPTION,
         epilog=PROG_EPILOG,
     )
-    parser.add_argument("input", help="The file input path")
+    parser.add_argument("input", help="file input path")
     parser.add_argument(
-        "-e",
-        "--extension",
-        help="The file output extensions. By default the input extension.",
+        "-o",
+        "--output",
+        help='file output path (Should contain the file name and extension). By default the input name suffixed with "compressed".',
         required=False,
     )
     parser.add_argument(
         "-p",
         "--preset",
-        help="The compression preset (high, mid, low) Higher values means smaller file sizes. Default: Mid",
+        help="compression preset (high, mid, low) Higher values means smaller file sizes. Default: Mid",
         required=False,
         default="mid",
     )
@@ -57,11 +72,17 @@ def validate_args(args: argparse.Namespace):
     :rtype: Boolean
     :raises: Will raise `SystemExit` if detected any invalid arguments.
     """
-    if args.preset.lower() not in [preset["name"] for preset in PRESETS]:
-        sys.exit(f"{args.preset} is not a valid preset option: high, mid, low")
+    # Extracting file's names and extensions
+    _, output_ext = os.path.splitext(args.output)
+    input_name, input_ext = os.path.splitext(args.input)
 
-    if args.extension is not None and args.extension not in EXTENSIONS:
-        sys.exit(f"{args.extension} is not a valid output format: mp4, mkv, mov, avi")
+    if args.preset.lower() not in PRESETS.keys():
+        sys.exit(f'"{args.preset}" is not a valid preset option: {tuple(PRESETS)}')
+
+    if args.output is not None and output_ext not in EXTENSIONS and output_ext != "":
+        sys.exit(f'"{args.output}" has no valid extension: {sorted(EXTENSIONS)}')
+    elif args.output is None and output_ext == "":
+        args.output = f"{input_name}_compressed.{input_ext}"
 
     return True
 
