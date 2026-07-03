@@ -1,7 +1,13 @@
 import argparse
 import sys
 import os
-from compressor import PRESETS, validate_media, compress, create_ffmpeg_command, EXTENSIONS
+from compressor import (
+    PRESETS,
+    validate_media,
+    compress,
+    create_ffmpeg_command,
+    EXTENSIONS,
+)
 
 PROG_NAME = "ffmpyg"
 PROG_DESCRIPTION = "Video/Image compressor wrapping ffmpeg behind the scenes."
@@ -13,7 +19,8 @@ def main():
     validate_path(args.input)
     validate_args(args)
     validate_media(args.input)
-    create_ffmpeg_command(args.input, args.output, options=args.preset)
+    command = create_ffmpeg_command(args.input, args.output, options=args.preset)
+    compress(command)
 
 
 def parse_args(argv=None):
@@ -80,13 +87,16 @@ def validate_args(args: argparse.Namespace):
         sys.exit(f'"{args.preset}" is not a valid preset option: {tuple(PRESETS)}')
     else:
         args.preset = args.preset.lower()
-        
+
     if args.output is None:
         args.output = f"{input_name}_compressed{input_ext}"
     else:
         _, output_ext = os.path.splitext(args.output)
+
         if output_ext not in EXTENSIONS and output_ext != "":
             sys.exit(f'"{args.output}" has no valid extension: {sorted(EXTENSIONS)}')
+        elif output_ext == "":
+            args.output = f"{input_name}_compressed{input_ext}"
 
     return True
 

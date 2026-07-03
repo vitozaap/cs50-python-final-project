@@ -34,4 +34,7 @@ def create_ffmpeg_command(media, output, options="mid"):
     return cmd
 
 def compress(cmd):
+    ffmpeg = subprocess.run(cmd, capture_output=True, text=True)
+
+def open_folder(path):
     ...
