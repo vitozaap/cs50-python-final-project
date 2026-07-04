@@ -9,11 +9,11 @@ EXTENSIONS = [".mp4", ".avi", ".mkv", ".mov"]
 def validate_media(path=""):
     cmd = ["ffprobe", "-v", "error", path]
     try:
-        result = subprocess.run(cmd)
+        result = subprocess.run(cmd, capture_output=True, text=True)
         result.check_returncode()
         return True
-    except subprocess.CalledProcessError as err:
-        sys.exit(f"{err.stderr.replace('\n', '')}")
+    except subprocess.CalledProcessError:
+        return False
     except FileNotFoundError:
         sys.exit("ffprobe binaries not found")
 

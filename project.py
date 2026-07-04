@@ -1,7 +1,6 @@
 import argparse
 import sys
 from rich.console import Console
-from rich.prompt import Prompt
 import os
 import questionary
 from compressor import (
@@ -19,10 +18,18 @@ PROG_EPILOG = "CS50's final project created by @vitozaap."
 
 def main():
     args = parse_args()
-    run_interactive(args)
-    validate_path(args.input)
-    validate_args(args)
-    validate_media(args.input)
+    if use_interactive_mode():
+        interactive_mode()
+    else:
+        sys.exit("Error validating input file path.") if not validate_path(
+            args.input
+        ) else None
+        sys.exit("Check if you file is in a valid video format.") if not validate_media(
+            args.input
+        ) else None
+    validated_args = validate_args(args)
+    if type(validated_args) is not bool:
+        sys.exit(validated_args)
     command = create_ffmpeg_command(args.input, args.output, options=args.preset)
     compress(command)
 
@@ -67,11 +74,27 @@ def parse_args(argv=None):
         required=False,
         default="mid",
     )
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    return args
 
 
-def validate_path(file=""):
+def validate_path(file):
     return os.path.isfile(file)
+
+
+def handle_output(args):
+    input_name, input_ext = os.path.splitext(args.input)
+
+    if args.output is None:
+        args.output = f"{input_name}_compressed{input_ext}"
+    else:
+        output_name, output_ext = os.path.splitext(args.output)
+        if output_ext not in EXTENSIONS and output_ext != "":
+            return f'"{args.output}" has no valid extension: {sorted(EXTENSIONS)}'
+        elif output_ext == "" and output_name == "":
+            args.output = f"{input_name}_compressed{input_ext}"
+        elif output_name != "" and output_ext == "":
+            args.output = f"{output_name}{input_ext}"
 
 
 def validate_args(args: argparse.Namespace):
@@ -83,66 +106,70 @@ def validate_args(args: argparse.Namespace):
     :rtype: Boolean
     :raises: Will raise `SystemExit` if detected any invalid arguments.
     """
-    # Extracting file's names and extensions
-
-    input_name, input_ext = os.path.splitext(args.input)
 
     if args.preset.lower() not in PRESETS.keys():
         return f'"{args.preset}" is not a valid preset option: {tuple(PRESETS)}'
     else:
         args.preset = args.preset.lower()
 
-    if args.output is None:
-        args.output = f"{input_name}_compressed{input_ext}"
-    else:
-        _, output_ext = os.path.splitext(args.output)
-
-        if output_ext not in EXTENSIONS and output_ext != "":
-            return f'"{args.output}" has no valid extension: {sorted(EXTENSIONS)}'
-        elif output_ext == "":
-            args.output = f"{input_name}_compressed{input_ext}"
+    output_validation = handle_output(args)
+    if output_validation is not None:
+        return output_validation
 
     return True
 
 
-def run_interactive(args=None):
-    if args.input != "":
-        return None
+def interactive_mode(args=None):
     console = Console()
     console.rule("[bold cyan]FFMPYG")
     custom = questionary.Style(
         [
             ("question", "fg:cyan bold"),
-            ("selected", "fg:cyan bold"),
+            ("selected", "fg:white bold"),
             ("pointer", "fg:cyan bold"),
             ("highlighted", "fg:cyan"),
         ]
     )
-    args.input = questionary.path(
-        "Enter file path",
-        style=questionary.Style(custom),
-        qmark="📁",
-    ).ask()
-    
-    questionary.select(
-        "Select the best compression preset",
-        choices=[
-            questionary.Choice(
-                "high - Higher compression factor (Smaller size)", "high"
-            ),
-            questionary.Choice("mid - Balanced compression factor (Default)", "mid"),
-            questionary.Choice(
-                "low - Lower compression factor (Higher quality)", "low"
-            ),
-        ],
-        default="mid",
-        style=custom,
-    ).ask()
-    args.output = Prompt.ask(
-        "[bold cyan]💾 Output path[/]",
-        default="output.mp4",
-    )
-    console.print("[bold green]✅ Ready to go!")
+
+    try:
+        while True:
+            path = questionary.path(
+                "Enter file path:", style=custom, qmark="📁", validate=validate_path
+            ).unsafe_ask()
+            if validate_media(path):
+                args.input = path
+                break
+            console.print(
+                f'[bold][dark_orange]"{path}"[/dark_orange] [red]is not a valid file to be compressed.[/red][/bold]'
+            )
+
+        args.preset = questionary.select(
+            "Select the best compression preset",
+            choices=[
+                questionary.Choice(
+                    "high - Higher compression factor (Smaller size)", "high"
+                ),
+                questionary.Choice(
+                    "mid - Balanced compression factor (Default)", "mid"
+                ),
+                questionary.Choice(
+                    "low - Lower compression factor (Higher quality)", "low"
+                ),
+            ],
+            default="mid",
+            style=custom,
+        ).unsafe_ask()
+        args.output = questionary.text(
+            "Output path:", qmark="💾", style=custom
+        ).unsafe_ask()
+
+    except KeyboardInterrupt:
+        console.print("[bold red]Closing program...")
+        sys.exit(1)
+
+
+def use_interactive_mode():
+    return len(sys.argv) <= 1
 
 
 if __name__ == "__main__":

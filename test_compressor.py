@@ -2,6 +2,7 @@ import subprocess
 from pytest_mock import MockerFixture
 import pytest
 from compressor import PRESETS, validate_media, create_ffmpeg_command
+import os
 
 def test_validate_media(mocker: MockerFixture):
     mock_process = subprocess.CompletedProcess(returncode=0, stdout="", args="")
@@ -10,12 +11,17 @@ def test_validate_media(mocker: MockerFixture):
     assert validate_media()
 
     # Validate if an exception is raised when the returncode is different from 0
+    mock_process = subprocess.CompletedProcess(
+        returncode=1, stdout=None, args="", stderr="err"
+    )
+    mocker.patch("subprocess.run", return_value=mock_process)
+    assert validate_media() is False
+
+
+def test_validate_media_missing_ffprobe(mocker: MockerFixture):
+    mocker.patch("subprocess.run", side_effect=FileNotFoundError)
     with pytest.raises(SystemExit):
-        mock_process = subprocess.CompletedProcess(
-            returncode=1, stdout=None, args="", stderr="err"
-        )
-        mocker.patch("subprocess.run", return_value=mock_process)
-        assert validate_media()
+        validate_media()
 
 
 def test_create_ffmpeg_command():
@@ -30,7 +36,7 @@ def test_create_ffmpeg_command():
         "-crf",
         str(PRESETS["high"]["crf"]),
         "-y",
-        r"folder\file.mp4",
+        os.path.normpath("folder/file.mp4"),
     ]
     # Validates if the input and output are being normalized and if the preset param is being used
     assert create_ffmpeg_command(inp, out, "high") == res
