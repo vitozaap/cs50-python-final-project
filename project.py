@@ -9,29 +9,44 @@ from compressor import (
     compress,
     create_ffmpeg_command,
     EXTENSIONS,
+    open_folder,
 )
 
 PROG_NAME = "ffmpyg"
-PROG_DESCRIPTION = "Video/Image compressor wrapping ffmpeg behind the scenes."
+PROG_DESCRIPTION = "Video compressor wrapping ffmpeg behind the scenes."
 PROG_EPILOG = "CS50's final project created by @vitozaap."
 
+
 def main():
+    console = Console()
     args = parse_args()
     duration = None
     if use_interactive_mode():
-        duration = interactive_mode()
+        duration = interactive_mode(args)
     else:
         # Handling system exits here in main (way simple to test later)
         # Both functions also run inside interactive_mode() so I decided to dont run them again.
-        sys.exit("Error validating input file path.") if not validate_path( args.input) else None
+        if not validate_path(args.input):
+            sys.exit("Error validating input file path.")
         duration = probe_media(args.input)
-        sys.exit("Check if you file is in a valid video format.") if not duration else None
-    
+        if not duration:
+            sys.exit("Check if you file is in a valid video format.")
+
     validated_args = validate_args(args)
     if type(validated_args) is not bool:
         sys.exit(validated_args)
     command = create_ffmpeg_command(args.input, args.output, options=args.preset)
     compress(command, duration)
+    console.print(
+        f'✅ [bold green]Your file is ready!\n🆕 Exported to: [/bold green][bold cyan]"{args.output}"'
+    )
+    if args.explorer:
+        with console.status("[bold] Opening folder..."):
+            open_folder(args.output)
+            console.print("📂[bold green] Output folder opened in your file explorer.")
+    console.rule(
+        "[dim]made by [magenta]@vitozaap[/magenta] with [red]♥[/red] to CS50[/dim]"
+    )
 
 
 def parse_args(argv=None):
@@ -49,8 +64,8 @@ def parse_args(argv=None):
 
     :param argv: Unparsed arguments directly from `sys.argv`.
     :type argv: `list[str]`
-    :returns: `True` if all arguments could be parse.
-    :rtype: Boolean
+    :returns: `Namespace` if all arguments could be parse.
+    :rtype: `Namespace`
     :raises: Will raise the default pretty error message from `argparse` if detected any invalid arguments.
     """
     parser = argparse.ArgumentParser(
@@ -60,6 +75,13 @@ def parse_args(argv=None):
     )
     parser.add_argument(
         "-i", "--input", help="file input path", required=False, default=""
+    )
+    parser.add_argument(
+        "-e",
+        "--explorer",
+        action="store_true",
+        default=False,
+        help="Open the output folder when finished. Default is false",
     )
     parser.add_argument(
         "-o",
@@ -106,7 +128,6 @@ def validate_args(args: argparse.Namespace) -> str | bool:
     :rtype: Boolean
     :raises: Will raise `SystemExit` if detected any invalid arguments.
     """
-
     if args.preset.lower() not in PRESETS.keys():
         return f'"{args.preset}" is not a valid preset option: {tuple(PRESETS)}'
     else:
@@ -115,7 +136,12 @@ def validate_args(args: argparse.Namespace) -> str | bool:
     output_validation = handle_output(args)
     if output_validation is not None:
         return output_validation
-
+    
+    # Because I used the flag -y in ffmpeg, I need to manually check if the output is different from input.
+    # Could cause bugs, ffmpeg would write when still reading from file
+    if os.path.normpath(args.input) == os.path.normpath(args.output):
+        return f'input and output cannot have the exactly same path: "{args.input}"'
+    
     return True
 
 
@@ -125,27 +151,33 @@ def interactive_mode(args=None) -> float:
     custom = questionary.Style(
         [
             ("question", "fg:cyan bold"),
-            ("selected", "fg:white bold"),
             ("pointer", "fg:cyan bold"),
-            ("highlighted", "fg:cyan"),
+            ("highlighted", "fg:cyan bold"),
+            ("instruction", "fg:gray italic"),
+            ("completion-menu", "bg:black fg:white"),
+            ("completion-menu.completion.current", "bg:cyan fg:#303030 bold"),
         ]
     )
 
     try:
         while True:
             path = questionary.path(
-                "Enter file path:", style=custom, qmark="📁", validate=validate_path
+                "Enter file path (TAB to Auto-Complete):",
+                style=custom,
+                qmark="📁",
+                validate=validate_path,
             ).unsafe_ask()
             duration = probe_media(path)
             if duration:
-                args.input = path  
+                args.input = path
                 break
             console.print(
                 f'[bold][dark_orange]"{path}"[/dark_orange] [red]is not a valid file to be compressed.[/red][/bold]'
             )
 
         args.preset = questionary.select(
-            "Select the best compression preset",
+            " Select the best compression preset",
+            qmark="🪄",  # Remembers me from the OOP Class, defining a Wizard...
             choices=[
                 questionary.Choice(
                     "high - Higher compression factor (Smaller size)", "high"
@@ -157,16 +189,24 @@ def interactive_mode(args=None) -> float:
                     "low - Lower compression factor (Higher quality)", "low"
                 ),
             ],
-            default="mid",
             style=custom,
         ).unsafe_ask()
         args.output = questionary.text(
-            "Output path:", qmark="💾", style=custom
+            "Output path",
+            qmark="💾",
+            style=custom,
+            instruction="(Empty = Same folder):",
         ).unsafe_ask()
+        args.explorer = questionary.confirm(
+            "Open compressed file folder when finished?",
+            style=custom,
+            default=False,
+            qmark="📂",
+        ).ask()
         return duration
 
     except KeyboardInterrupt:
-        console.print("[bold red]Closing program...")
+        console.print("[bold red]Cancelling operation...")
         sys.exit(1)
 
 

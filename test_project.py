@@ -10,7 +10,6 @@ from project import (
 from pytest_mock import MockerFixture
 
 
-
 def test_parse_args():
     # Testing parsing defaults
     args = parse_args([])
@@ -18,7 +17,9 @@ def test_parse_args():
 
 
 def test_main_fast_mode(mocker: MockerFixture):
-    mock_args = argparse.Namespace(input="file", preset="mid", output="mp4")
+    mock_args = argparse.Namespace(
+        input="file", preset="mid", output="mp4", explorer=False
+    )
 
     # Mocking functions
     mock_validate_path = mocker.patch("project.validate_path", return_value=True)
@@ -40,8 +41,28 @@ def test_main_fast_mode(mocker: MockerFixture):
     mock_validate_args.assert_called_once_with(mock_parse_args.return_value)
 
 
+def test_main_calling_open_folder(mocker: MockerFixture):
+    mock_args = argparse.Namespace(
+        input="file", preset="mid", output="mp4", explorer=True
+    )
+
+    # Mocking functions
+    mocker.patch("project.validate_path", return_value=True)
+    mocker.patch("project.parse_args", return_value=mock_args)
+    mocker.patch("project.validate_args", return_value=True)
+    mocker.patch("project.probe_media", return_value=1.0)
+    mocker.patch("project.interactive_mode", return_value=None)
+    mock_open_folder = mocker.patch("project.open_folder")
+    mocker.patch("project.use_interactive_mode", return_value=False)
+    mocker.patch("project.create_ffmpeg_command")
+    mocker.patch("project.compress")
+
+    main()
+    mock_open_folder.assert_called_once_with(mock_args.output)
+
+
 def test_main_interactive_mode(mocker: MockerFixture):
-    mock_args = argparse.Namespace(input="", preset="mid", output=None)
+    mock_args = argparse.Namespace(input="", preset="mid", output=None, explorer=False)
 
     # Mocking functions
     mock_validate_path = mocker.patch("project.validate_path")
