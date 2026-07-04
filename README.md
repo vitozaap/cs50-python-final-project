@@ -1,5 +1,5 @@
 # FFMPYG
-#### Video Demo: 
+#### Video Demo: https://youtu.be/V39XqHVo9pk
 #### Description:
 `ffmpyg` is a command-line tool that wraps `ffmpeg` to compress video files with minimal effort. `ffmpeg` is one of the most powerful media tools available, but its command-line interface is really hard for anyone who is not comfortable memorizing flags and codec options. `ffmpyg` hides that complexity behind three simple presets and a friendly
 interface, so the user only needs to choose a file/video and how much they want to compress it. Behind the scenes, `ffmpyg` build and run the correct `ffmpeg` command.
