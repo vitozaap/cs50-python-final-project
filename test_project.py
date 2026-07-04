@@ -24,7 +24,7 @@ def test_main_fast_mode(mocker: MockerFixture):
     mock_validate_path = mocker.patch("project.validate_path", return_value=True)
     mock_parse_args = mocker.patch("project.parse_args", return_value=mock_args)
     mock_validate_args = mocker.patch("project.validate_args", return_value=True)
-    mock_validate_media = mocker.patch("project.validate_media", return_value=True)
+    mock_probe_media = mocker.patch("project.probe_media", return_value=1.0)
     mock_interactive_mode = mocker.patch("project.interactive_mode", return_value=None)
     mocker.patch("project.use_interactive_mode", return_value=False)
     mocker.patch("project.create_ffmpeg_command")
@@ -35,7 +35,7 @@ def test_main_fast_mode(mocker: MockerFixture):
     # validate if main is calling the functions correctly
     mock_parse_args.assert_called_once()
     mock_interactive_mode.assert_not_called()
-    mock_validate_media.assert_called_once_with(mock_parse_args.return_value.input)
+    mock_probe_media.assert_called_once_with(mock_parse_args.return_value.input)
     mock_validate_path.assert_called_once_with(mock_parse_args.return_value.input)
     mock_validate_args.assert_called_once_with(mock_parse_args.return_value)
 
@@ -47,7 +47,7 @@ def test_main_interactive_mode(mocker: MockerFixture):
     mock_validate_path = mocker.patch("project.validate_path")
     mock_parse_args = mocker.patch("project.parse_args", return_value=mock_args)
     mock_validate_args = mocker.patch("project.validate_args", return_value=True)
-    mock_validate_media = mocker.patch("project.validate_media")
+    mock_probe_media = mocker.patch("project.probe_media")
     mock_interactive_mode = mocker.patch("project.interactive_mode", return_value=None)
     mocker.patch("project.use_interactive_mode", return_value=True)
     mocker.patch("project.create_ffmpeg_command")
@@ -58,7 +58,7 @@ def test_main_interactive_mode(mocker: MockerFixture):
     # validate if main is calling the functions correctly
     mock_parse_args.assert_called_once()
     mock_interactive_mode.assert_called_once()
-    mock_validate_media.assert_not_called()
+    mock_probe_media.assert_not_called()
     mock_validate_path.assert_not_called()
     mock_validate_args.assert_called_once_with(mock_parse_args.return_value)
 

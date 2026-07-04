@@ -1,27 +1,27 @@
 import subprocess
 from pytest_mock import MockerFixture
 import pytest
-from compressor import PRESETS, validate_media, create_ffmpeg_command
+from compressor import PRESETS, probe_media, create_ffmpeg_command
 import os
 
-def test_validate_media(mocker: MockerFixture):
-    mock_process = subprocess.CompletedProcess(returncode=0, stdout="", args="")
+def test_probe_media(mocker: MockerFixture):
+    mock_process = subprocess.CompletedProcess(returncode=0, stdout="1", args="")
     mocker.patch("subprocess.run", return_value=mock_process)
     # Validate if a valid process response can pass without raising exceptions
-    assert validate_media()
+    assert probe_media() == 1.0
 
     # Validate if an exception is raised when the returncode is different from 0
     mock_process = subprocess.CompletedProcess(
         returncode=1, stdout=None, args="", stderr="err"
     )
     mocker.patch("subprocess.run", return_value=mock_process)
-    assert validate_media() is False
+    assert probe_media() is False
 
 
-def test_validate_media_missing_ffprobe(mocker: MockerFixture):
+def test_probe_media_missing_ffprobe(mocker: MockerFixture):
     mocker.patch("subprocess.run", side_effect=FileNotFoundError)
     with pytest.raises(SystemExit):
-        validate_media()
+        probe_media()
 
 
 def test_create_ffmpeg_command():

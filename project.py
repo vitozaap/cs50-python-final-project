@@ -5,7 +5,7 @@ import os
 import questionary
 from compressor import (
     PRESETS,
-    validate_media,
+    probe_media,
     compress,
     create_ffmpeg_command,
     EXTENSIONS,
@@ -15,23 +15,23 @@ PROG_NAME = "ffmpyg"
 PROG_DESCRIPTION = "Video/Image compressor wrapping ffmpeg behind the scenes."
 PROG_EPILOG = "CS50's final project created by @vitozaap."
 
-
 def main():
     args = parse_args()
+    duration = None
     if use_interactive_mode():
-        interactive_mode()
+        duration = interactive_mode()
     else:
-        sys.exit("Error validating input file path.") if not validate_path(
-            args.input
-        ) else None
-        sys.exit("Check if you file is in a valid video format.") if not validate_media(
-            args.input
-        ) else None
+        # Handling system exits here in main (way simple to test later)
+        # Both functions also run inside interactive_mode() so I decided to dont run them again.
+        sys.exit("Error validating input file path.") if not validate_path( args.input) else None
+        duration = probe_media(args.input)
+        sys.exit("Check if you file is in a valid video format.") if not duration else None
+    
     validated_args = validate_args(args)
     if type(validated_args) is not bool:
         sys.exit(validated_args)
     command = create_ffmpeg_command(args.input, args.output, options=args.preset)
-    compress(command)
+    compress(command, duration)
 
 
 def parse_args(argv=None):
@@ -82,7 +82,7 @@ def validate_path(file):
     return os.path.isfile(file)
 
 
-def handle_output(args):
+def handle_output(args) -> None | str:
     input_name, input_ext = os.path.splitext(args.input)
 
     if args.output is None:
@@ -97,7 +97,7 @@ def handle_output(args):
             args.output = f"{output_name}{input_ext}"
 
 
-def validate_args(args: argparse.Namespace):
+def validate_args(args: argparse.Namespace) -> str | bool:
     """Validate arguments passed through argparse.
 
     :param args: Parsed arguments.
@@ -119,7 +119,7 @@ def validate_args(args: argparse.Namespace):
     return True
 
 
-def interactive_mode(args=None):
+def interactive_mode(args=None) -> float:
     console = Console()
     console.rule("[bold cyan]FFMPYG")
     custom = questionary.Style(
@@ -136,8 +136,9 @@ def interactive_mode(args=None):
             path = questionary.path(
                 "Enter file path:", style=custom, qmark="📁", validate=validate_path
             ).unsafe_ask()
-            if validate_media(path):
-                args.input = path
+            duration = probe_media(path)
+            if duration:
+                args.input = path  
                 break
             console.print(
                 f'[bold][dark_orange]"{path}"[/dark_orange] [red]is not a valid file to be compressed.[/red][/bold]'
@@ -162,13 +163,14 @@ def interactive_mode(args=None):
         args.output = questionary.text(
             "Output path:", qmark="💾", style=custom
         ).unsafe_ask()
+        return duration
 
     except KeyboardInterrupt:
         console.print("[bold red]Closing program...")
         sys.exit(1)
 
 
-def use_interactive_mode():
+def use_interactive_mode() -> bool:
     return len(sys.argv) <= 1
 
 
